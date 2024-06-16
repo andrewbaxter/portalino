@@ -1,0 +1,6 @@
+[submodule "spaghettinuum"]
+	path = spaghettinuum
+	url = https://github.com/andrewbaxter/spaghettinuum.git
+[submodule "nix/nixshared"]
+	path = nix/nixshared
+	url = https://github.com/andrewbaxter/nixshared.git
