@@ -1,4 +1,4 @@
-{ spagh_config }:
+{ spagh_config, ipv4_mode }:
 let
   nixpkgsPath = <nixpkgs>;
   buildSystem = (configuration: import
@@ -98,7 +98,7 @@ buildSystem
                 serviceConfig.RestartSec = 60;
                 script = ''
                   set -xeu
-                  exec ${pkg}/bin/glue
+                  exec ${pkg}/bin/glue --ipv4-mode dhcp
                 '';
               };
 
@@ -125,6 +125,12 @@ buildSystem
               networkConfig.DHCPPrefixDelegation = "yes";
               ipv6SendRAConfig.EmitDNS = "yes";
               ipv6SendRAConfig.DNS = "_link_local";
+              dns = [
+                "[2606:4700:4700::64]#dns64.cloudflare-dns.com"
+                "[2606:4700:4700::6464]#dns64.cloudflare-dns.com"
+                "[2001:4860:4860::64]#dns64.dns.google"
+                "[2001:4860:4860::6464]#dns64.dns.google"
+              ];
             };
             systemd.network.networks.lan = {
               matchConfig.Name = "eth1";
@@ -247,11 +253,8 @@ buildSystem
             # DNS64, Spaghettinuum
             # Get local dns out of the way
             services.resolved.enable = true; # Seems to be on anyway, despite default off
+            services.resolved.dnsovertls = "true";
             services.resolved.fallbackDns = [ ];
-            #services.resolved.extraConfig = lib.concatStringsSep "\n" [
-            #  "DNSStubListener=no"
-            #  "DNSStubListenerExtra=udp:127.0.0.1:153"
-            #];
             systemd.services.spagh =
               let
                 pkg = import ../software/spaghettinuum/source/package.nix { pkgs = pkgs; };
@@ -294,6 +297,8 @@ buildSystem
               pkgs.psmisc
               pkgs.lshw
               pkgs.ndisc6
+              pkgs.e2fsprogs
+              pkgs.smartmontools
               (pkgs.writeShellScriptBin "nftables_debug" (
                 let chain = "x_trace"; in ''
                   ${pkgs.nftables}/bin/nft add chain ip6 ${nftableIpv6} ${chain} { type filter hook prerouting priority -301\; }

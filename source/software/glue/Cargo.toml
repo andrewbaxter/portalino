@@ -10,4 +10,5 @@ rand = "0.8.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
-spaghettinuum = { path = "../spaghettinuum/source" }
+askama = "0.12.1"
+fast_qr = { version = "0.12.5", features = ["svg"] }

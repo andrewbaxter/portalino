@@ -1,5 +1,5 @@
 use {
-    glue::{
+    infra::{
         notify,
         run_,
     },
@@ -8,10 +8,12 @@ use {
         ResultContext,
     },
     spaghettinuum::interface::config::{
+        content::{
+            ContentConfig,
+            ServeMode,
+        },
         node::{
-            node_config::{
-                NodeConfig,
-            },
+            node_config::NodeConfig,
             resolver_config::{
                 DnsBridgeConfig,
                 ResolverConfig,
@@ -21,6 +23,7 @@ use {
             AdnSocketAddr,
             GlobalAddrConfig,
             IpVer,
+            StrSocketAddr,
         },
     },
     std::{
@@ -36,7 +39,7 @@ fn main() {
     match (|| -> Result<(), loga::Error> {
         let root =
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../../")
+                .join("../../")
                 .canonicalize()
                 .context("Error getting project root absolute path")?;
         let stage_dir = root.join("stage");
@@ -59,35 +62,24 @@ fn main() {
                     node: NodeConfig::default(),
                     resolver: Some(ResolverConfig {
                         dns_bridge: Some(DnsBridgeConfig {
-                            upstream: Some(vec![
-                                //. .
-                                AdnSocketAddr {
-                                    ip: IpAddr::from_str("2606:4700:4700::64").unwrap(),
-                                    port: Some(853),
-                                    adn: Some("dns64.cloudflare-dns.com".to_string()),
-                                },
-                                AdnSocketAddr {
-                                    ip: IpAddr::from_str("2606:4700:4700::6464").unwrap(),
-                                    port: Some(853),
-                                    adn: Some("dns64.cloudflare-dns.com".to_string()),
-                                },
-                                AdnSocketAddr {
-                                    ip: IpAddr::from_str("2001:4860:4860::6464").unwrap(),
-                                    port: Some(853),
-                                    adn: Some("dns64.dns.google".to_string()),
-                                },
-                                AdnSocketAddr {
-                                    ip: IpAddr::from_str("2001:4860:4860::64").unwrap(),
-                                    port: Some(853),
-                                    adn: Some("dns64.dns.google".to_string()),
-                                }
-                            ]),
+                            upstream: Some(vec![AdnSocketAddr {
+                                ip: IpAddr::from_str("127.0.0.53").unwrap(),
+                                port: None,
+                                adn: None,
+                            }]),
                             ..Default::default()
                         }),
                         ..Default::default()
                     }),
+                    content: Some(vec![ContentConfig {
+                        bind_addrs: vec![StrSocketAddr::new("[::]:443")],
+                        mode: ServeMode::StaticFiles { content_dir: PathBuf::from("/run/wifidynamic") },
+                    }]),
                     ..Default::default()
                 }).unwrap())
+                .arg("--argstr")
+                .arg("ipv4_mode")
+                .arg("dhcp")
                 .arg("config.system.build.myiso"),
         ).context("Building failed")?;
         return Ok(());

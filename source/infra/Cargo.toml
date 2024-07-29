@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+aargvark = "0.3.0"
+loga = "0.5.2"
+rand = "0.8.5"
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.121"
+spaghettinuum = { path = "../software/spaghettinuum/source" }
