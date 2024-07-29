@@ -1,18 +1,7 @@
 use {
-    aargvark::{
-        vark,
-        Aargvark,
-        AargvarkJson,
-    },
-    glue::{
-        run,
-        Userdata,
-        USERDATA_FILENAME,
-        USERDATA_UUID,
-    },
+    crate::run,
     loga::{
         ea,
-        fatal,
         ResultContext,
     },
     rand::{
@@ -22,25 +11,16 @@ use {
     serde::Deserialize,
     std::{
         collections::HashSet,
-        fs::write,
         io::{
             stdin,
             BufRead,
             BufReader,
         },
-        process::{
-            Command,
-        },
+        process::Command,
         thread::sleep,
         time::Duration,
     },
-    tempfile::tempdir,
 };
-
-#[derive(Aargvark)]
-struct Args {
-    userdata: AargvarkJson<Userdata>,
-}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -193,53 +173,32 @@ fn candidates() -> Result<HashSet<String>, loga::Error> {
     }).collect::<HashSet<_>>());
 }
 
-fn main() {
-    match (|| -> Result<(), loga::Error> {
-        let args = vark::<Args>();
-        let tempdir = tempdir().context("Error creating tempdir")?;
-        let userdata_path = tempdir.path().join(USERDATA_FILENAME);
-        write(
-            &userdata_path,
-            serde_json::to_string_pretty(&args.userdata.value).unwrap(),
-        ).context_with("Error staging userdata config", ea!(path = userdata_path.to_string_lossy()))?;
-        let mut start_devs = candidates()?;
-        println!("Insert the USB drive to flash as a userdata device.");
-        let mut stdin_lines = BufReader::new(stdin()).lines();
-        let dest = 'found : loop {
-            sleep(Duration::from_secs(1));
-            let current_devs = candidates()?;
-            for dev in current_devs.difference(&start_devs) {
-                let confirm =
-                    rand::thread_rng().sample_iter(&Alphanumeric).take(5).map(char::from).collect::<String>();
-                println!(
-                    "Do you want to use [{}] as a userdata device? Its contents will be replaced.\nEnter [{}] to confirm or anything else to select another.",
-                    dev,
-                    confirm
-                );
-                print!("> ");
-                let Some(line) = stdin_lines.next() else {
-                    return Ok(());
-                };
-                let line = line.context("Error reading line from stdin")?;
-                if line == confirm {
-                    break 'found dev.clone();
-                }
+pub fn select_usb_drive(purpose: &str) -> Result<Option<String>, loga::Error> {
+    let mut start_devs = candidates()?;
+    println!("Insert the USB drive to flash as a [{}] device.", purpose);
+    let mut stdin_lines = BufReader::new(stdin()).lines();
+    let dest = 'found : loop {
+        sleep(Duration::from_secs(1));
+        let current_devs = candidates()?;
+        for dev in current_devs.difference(&start_devs) {
+            let confirm =
+                rand::thread_rng().sample_iter(&Alphanumeric).take(5).map(char::from).collect::<String>();
+            println!(
+                "Do you want to use [{}] as a [{}] device? Its contents will be replaced.\nEnter [{}] to confirm or anything else to select another.",
+                dev,
+                purpose,
+                confirm
+            );
+            print!("> ");
+            let Some(line) = stdin_lines.next() else {
+                return Ok(None);
+            };
+            let line = line.context("Error reading line from stdin")?;
+            if line == confirm {
+                break 'found dev.clone();
             }
-            start_devs = current_devs;
-        };
-        run(
-            Command::new("mkfs.erofs")
-                .arg("-U")
-                .arg(USERDATA_UUID)
-                .arg("--all-root")
-                .arg(dest)
-                .arg(tempdir.path()),
-        ).context("Error flashing userdata device")?;
-        return Ok(());
-    })() {
-        Ok(_) => { },
-        Err(e) => {
-            fatal(e);
-        },
-    }
+        }
+        start_devs = current_devs;
+    };
+    return Ok(Some(dest));
 }

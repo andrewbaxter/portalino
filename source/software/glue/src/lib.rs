@@ -2,6 +2,7 @@ use {
     loga::{
         ea,
         DebugDisplay,
+        Log,
         ResultContext,
     },
     serde::{
@@ -13,6 +14,8 @@ use {
         Stdio,
     },
 };
+
+pub mod drive;
 
 pub const USERDATA_UUID: &str = "0f718580-e2ba-461e-89e2-4e6a448ab87f";
 pub const USERDATA_FILENAME: &str = "userdata.json";
@@ -46,10 +49,8 @@ pub struct Userdata {
     pub wifi: Option<WifiConfig>,
 }
 
-pub fn run(command: &mut Command) -> Result<std::process::Output, loga::Error> {
+pub fn run_(command: &mut Command) -> Result<std::process::Output, loga::Error> {
     return Ok((|| -> Result<std::process::Output, loga::Error> {
-        command.stdout(Stdio::piped());
-        command.stderr(Stdio::piped());
         let p = command.spawn()?;
         let res = p.wait_with_output()?;
         if !res.status.success() {
@@ -57,4 +58,16 @@ pub fn run(command: &mut Command) -> Result<std::process::Output, loga::Error> {
         }
         return Ok(res);
     })().context_with("Error executing command", ea!(command = command.dbg_str()))?);
+}
+
+pub fn run(command: &mut Command) -> Result<std::process::Output, loga::Error> {
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+    return run_(command);
+}
+
+pub fn notify(text: &str) {
+    run(
+        Command::new("notify-send").arg(text),
+    ).log(&Log::new_root(loga::INFO), loga::WARN, "Failed to send notification");
 }

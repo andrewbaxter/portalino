@@ -4,7 +4,6 @@ let
   buildSystem = (configuration: import
     (nixpkgsPath + /nixos/lib/eval-config.nix)
     { modules = [ configuration ]; });
-  persistent = "/mnt/persistent";
   wifiPasswordDir = "/run/wifi";
   wifiPasswordFile = "${wifiPasswordDir}/password";
   isoHostKey = "/to_etc/ssh/host_key";
@@ -12,7 +11,7 @@ let
   nftableIpv6 = "x_table_ipv6";
 in
 buildSystem
-  ({ config, modulesPath, pkgs, lib, ... }:
+  ({ ... }:
   {
     imports = [
       (nixpkgsPath + /nixos/modules/profiles/all-hardware.nix)
@@ -50,7 +49,6 @@ buildSystem
 
             # Disk 
             volumesetup.enable = true;
-            volumesetup.mountpoint = persistent;
 
             # Glue
             systemd.services.glue =
@@ -66,7 +64,7 @@ buildSystem
                       rustPlatform.buildRustPackage rec {
                         pname = "glue";
                         version = "0.0.0";
-                        cargoLock. lockFile = ./glue/Cargo.lock;
+                        cargoLock. lockFile = ../software/glue/Cargo.lock;
                         src = ./glue;
                         cargoBuildFlags = [ "--bin=setup" ];
                         nativeBuildInputs = [
@@ -92,6 +90,7 @@ buildSystem
               in
               {
                 after = [ "volumesetup.service" ];
+                requires = [ "volumesetup.service" ];
                 wantedBy = [ "multi-user.target" ];
                 serviceConfig.Type = "oneshot";
                 startLimitIntervalSec = 0;
@@ -157,13 +156,6 @@ buildSystem
             networking.jool.enable = true;
             networking.jool.nat64.default = { };
             systemd.services.jool-nat64-default.wantedBy = lib.mkForce [ ];
-            systemd.mounts = [ ] ++ (map
-              (w: {
-                what = "/run/pppdynamic/secrets";
-                where = w;
-                type = "none";
-                options = "bind";
-              }) [ "/etc/ppp/pap-secrets" "/etc/ppp/chap-secrets" ]);
             services.pppd = {
               enable = true;
               peers.main = {

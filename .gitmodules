@@ -1,9 +1,9 @@
 [submodule "spaghettinuum"]
-	path = source/spaghettinuum
+	path = source/software/spaghettinuum
 	url = https://github.com/andrewbaxter/spaghettinuum.git
 [submodule "nix/nixshared"]
-	path = source/nixshared
+	path = source/os/nixshared
 	url = https://github.com/andrewbaxter/nixshared.git
 [submodule "nix/volumesetup"]
-	path = source/volumesetup
+	path = source/software/volumesetup
 	url = https://github.com/andrewbaxter/volumesetup.git
