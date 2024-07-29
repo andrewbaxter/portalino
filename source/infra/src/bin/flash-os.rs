@@ -18,7 +18,7 @@ fn main() {
     match (|| -> Result<(), loga::Error> {
         let root =
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../")
+                .join("../../../")
                 .canonicalize()
                 .context("Error getting project root absolute path")?;
         let Some(dest) = select_usb_drive("os")? else {

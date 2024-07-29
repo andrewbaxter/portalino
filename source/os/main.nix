@@ -1,4 +1,4 @@
-{}:
+{ spagh_config }:
 let
   nixpkgsPath = <nixpkgs>;
   buildSystem = (configuration: import
@@ -15,7 +15,7 @@ buildSystem
   {
     imports = [
       (nixpkgsPath + /nixos/modules/profiles/all-hardware.nix)
-      ./volumesetup/source/module.nix
+      ../software/volumesetup/source/module.nix
       ({ config, modulesPath, pkgs, lib, ... }:
         {
           config = {
@@ -64,8 +64,8 @@ buildSystem
                       rustPlatform.buildRustPackage rec {
                         pname = "glue";
                         version = "0.0.0";
-                        cargoLock. lockFile = ../software/glue/Cargo.lock;
-                        src = ./glue;
+                        cargoLock.lockFile = ../software/glue/Cargo.lock;
+                        src = ../software/glue;
                         cargoBuildFlags = [ "--bin=setup" ];
                         nativeBuildInputs = [
                           cargo
@@ -252,55 +252,24 @@ buildSystem
             #  "DNSStubListener=no"
             #  "DNSStubListenerExtra=udp:127.0.0.1:153"
             #];
-            #            systemd.services.spagh =
-            #              let
-            #                pkg = import ./spaghettinuum/source/package.nix
-            #                config = pkgs.writeText "spagh_config" (builtins.toJSON {
-            #                  persistent_dir = "${persistent}/spagh";
-            #                  identity = {
-            #                    local = identity_file;
-            #                  };
-            #                  global_addrs = [
-            #                    {
-            #                      from_interface = {
-            #                        ip_version = "v6";
-            #                        name = "br0";
-            #                      };
-            #                    }
-            #                  ];
-            #                  node = {
-            #                    bind_addr = "[::]:43890";
-            #                    bootstrap = [ ];
-            #                  };
-            #                  publisher = {
-            #                    bind_addr = "[::]:43891";
-            #                  };
-            #                  resolver = {
-            #                    dns_bridge = {
-            #                      udp_bind_addrs = [ "0:53" ];
-            #                      upstream = "127.0.0.1:153";
-            #                    };
-            #                  };
-            #                  admin_token = {
-            #                    inline = publisher_token;
-            #                  };
-            #                  api_bind_addrs = [
-            #                    "[::]:12434"
-            #                  ];
-            #                });
-            #              in
-            #              {
-            #                after = [ "nftables.service" "persistent.service" ];
-            #                wantedBy = [ "multi-user.target" ];
-            #                serviceConfig.Type = "simple";
-            #                startLimitIntervalSec = 0;
-            #                serviceConfig.Restart = "on-failure";
-            #                serviceConfig.RestartSec = 60;
-            #                script = ''
-            #                  set -xeu
-            #                  exec ${pkg}/bin/spagh-node --config ${config}
-            #                '';
-            #              };
+            systemd.services.spagh =
+              let
+                pkg = import ../software/spaghettinuum/source/package.nix { pkgs = pkgs; };
+                config_path = pkgs.writeText "spagh_config" spagh_config;
+              in
+              {
+                after = [ "nftables.service" "glue.service" ];
+                requires = [ "glue.service" ];
+                wantedBy = [ "multi-user.target" ];
+                serviceConfig.Type = "simple";
+                startLimitIntervalSec = 0;
+                serviceConfig.Restart = "on-failure";
+                serviceConfig.RestartSec = 60;
+                script = ''
+                  set -xeu
+                  exec ${pkg}/bin/spagh-node --config ${config_path}
+                '';
+              };
 
             # Admin
             users = {
