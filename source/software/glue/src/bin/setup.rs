@@ -15,7 +15,6 @@ use {
         },
         QRBuilder,
     },
-    glue::run,
     loga::{
         ea,
         fatal,
@@ -31,40 +30,22 @@ use {
             write,
         },
         path::PathBuf,
-        process::Command,
     },
 };
 
-fn start_nat64() -> Result<(), loga::Error> {
-    run(Command::new("systemctl").arg("start").arg("jool-nat64-default")).context("Error starting nat64")?;
-    return Ok(());
-}
-
 #[derive(Aargvark)]
+#[vark(id = "IPV4-MODE")]
 enum Ipv4Mode {
     UpstreamNat64,
     Dhcp,
 }
 
 #[derive(Aargvark)]
-struct Args {
-    ipv4_mode: Ipv4Mode,
-}
+struct Args {}
 
 fn main() {
     match (|| -> Result<(), loga::Error> {
-        let args = vark::<Args>();
-
-        // Setup ipv4
-        match args.ipv4_mode {
-            Ipv4Mode::UpstreamNat64 => {
-                // Nothing to do
-            },
-            Ipv4Mode::Dhcp => {
-                run(Command::new("dhcpcd").arg("/dev/eth0")).context("Error starting DHCP for IPv4 address")?;
-                start_nat64()?;
-            },
-        }
+        _ = vark::<Args>();
 
         // Setup wifi
         {

@@ -4,10 +4,6 @@ let
   buildSystem = (configuration: import
     (nixpkgsPath + /nixos/lib/eval-config.nix)
     { modules = [ configuration ]; });
-  wifiPasswordDir = "/run/wifi";
-  wifiPasswordFile = "${wifiPasswordDir}/password";
-  isoHostKey = "/to_etc/ssh/host_key";
-  isoHostKeyPub = "/to_etc/ssh/host_key.pub";
   nftableIpv6 = "x_table_ipv6";
 in
 buildSystem
@@ -24,6 +20,8 @@ buildSystem
             boot.kernel.sysctl = {
               "net.ipv6.bindv6only" = true;
               "net.ipv6.conf.all.forwarding" = true;
+              # Get rid of the "clamping QRV from 1 to 2!" log spam (why)
+              "net.ipv6.mld_qrv" = 1;
             };
             boot.consoleLogLevel = lib.mkDefault 7;
             systemd.targets.sound.enable = false;
@@ -98,17 +96,15 @@ buildSystem
                 serviceConfig.RestartSec = 60;
                 script = ''
                   set -xeu
-                  exec ${pkg}/bin/glue --ipv4-mode dhcp
+                  exec ${pkg}/bin/setup
                 '';
               };
 
             # Network interfaces, routing
             networking.dhcpcd.enable = false;
-            networking.useDHCP = false;
             systemd.network.enable = true;
             systemd.network.networks.wan = {
               matchConfig.Name = "eth0";
-              DHCP = "ipv6";
               dhcpV6Config.DUIDType = "link-layer";
               # This interface doesn't get an address (no IA_NA in dhcp resp, no PIO in RA) so
               # don't wait for one.  This puts the interface in "configured" state.
@@ -156,29 +152,6 @@ buildSystem
             systemd.services.hostapd = {
               after = [ "glue.service" ];
               unitConfig.ConditionPathExists = "/run/wifidynamic";
-            };
-
-            # Tentative IPv4 setup
-            networking.jool.enable = true;
-            networking.jool.nat64.default = { };
-            systemd.services.jool-nat64-default.wantedBy = lib.mkForce [ ];
-            services.pppd = {
-              enable = true;
-              peers.main = {
-                name = "main";
-                enable = true;
-                autostart = false;
-                config = lib.concatStringsSep "\n" [
-                  "plugin rp-pppoe.so"
-                  "eth0"
-                  "persist"
-                  "maxfail 0"
-                  "holdoff 5"
-                  "defaultroute"
-                  "noauth"
-                  "file /tmp/pppdynamic/config"
-                ];
-              };
             };
 
             # Firewall
@@ -313,6 +286,20 @@ buildSystem
             ];
           };
         })
+      ({ config, pkgs, lib, ... }: {
+        upstream_nat64 = {
+          config = {
+            systemd.network.networks.wan.DHCP = "ipv6";
+          };
+        };
+        dhcp = {
+          config = {
+            networking.jool.enable = true;
+            networking.jool.nat64.default = { };
+            systemd.network.networks.wan.DHCP = "yes";
+          };
+        };
+      }.${ipv4_mode})
       (import ./nixshared/iso/mod.nix {
         nixpkgsPath = nixpkgsPath;
         extraFiles = [ ];

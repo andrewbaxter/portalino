@@ -5,12 +5,11 @@ use {
         ResultContext,
     },
     rand::{
-        distributions::{
-            Uniform,
-        },
+        distributions::Uniform,
         Rng,
     },
     serde::Deserialize,
+    spaghettinuum::bb,
     std::{
         collections::HashSet,
         fs::{
@@ -183,6 +182,7 @@ fn candidates() -> Result<HashSet<String>, loga::Error> {
 }
 
 pub fn select_usb_drive(purpose: &str) -> Result<Option<PathBuf>, loga::Error> {
+    let by_id_dir = PathBuf::from("/dev/disk/by-id");
     let mut start_devs = candidates()?;
     println!("Insert the USB drive to flash as a [{}] device.", purpose);
     let mut stdin_lines = BufReader::new(stdin()).lines();
@@ -190,15 +190,37 @@ pub fn select_usb_drive(purpose: &str) -> Result<Option<PathBuf>, loga::Error> {
         sleep(Duration::from_secs(1));
         let current_devs = candidates()?;
         for dev in current_devs.difference(&start_devs) {
-            let confirm =
-                rand::thread_rng()
-                    .sample_iter(Uniform::new('a', 'z'))
-                    .take(5)
-                    .map(char::from)
-                    .collect::<String>();
+            let dest = PathBuf::from(dev);
+
+            // Try to find a more verbose name
+            let dest = bb!{
+                'found_long _;
+                for e in read_dir(
+                    &by_id_dir,
+                ).context_with("Error reading", ea!(path = by_id_dir.to_string_lossy()))? {
+                    let Ok(e) = e else {
+                        continue;
+                    };
+                    let Ok(link_dest) = read_link(e.path()) else {
+                        continue;
+                    };
+                    let Ok(link_dest) = by_id_dir.join(link_dest).canonicalize() else {
+                        continue;
+                    };
+                    if link_dest == dest {
+                        break 'found_long e.path();
+                    }
+                }
+                break 'found_long dest;
+            };
+
+            // Generate typo-prevention code
+            let confirm = rand::thread_rng().sample_iter(Uniform::new('a', 'z')).take(5).map(char::from).collect::<String>();
+
+            // Confirm
             println!(
                 "Do you want to use [{}] as a [{}] device? Its contents will be replaced.\nEnter [{}] to confirm or anything else to select another.",
-                dev,
+                dest.to_string_lossy(),
                 purpose,
                 confirm
             );
@@ -209,22 +231,10 @@ pub fn select_usb_drive(purpose: &str) -> Result<Option<PathBuf>, loga::Error> {
             };
             let line = line.context("Error reading line from stdin")?;
             if line == confirm {
-                break 'found PathBuf::from(dev);
+                break 'found dest;
             }
         }
         start_devs = current_devs;
     };
-    let by_id_dir = PathBuf::from("/dev/disk/by-id");
-    for e in read_dir(&by_id_dir).context_with("Error reading", ea!(path = by_id_dir.to_string_lossy()))? {
-        let Ok(e) = e else {
-            continue;
-        };
-        let Ok(link_dest) = read_link(e.path()) else {
-            continue;
-        };
-        if link_dest == dest {
-            return Ok(Some(e.path()));
-        }
-    }
     return Ok(Some(dest));
 }
