@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      * {
+        border: 0px;
+        margin: 0px;
+        font-family: sans-serif;
+        box-sizing: content-box;
+      }
+
+      html {
+        height: 100%;
+      }
+
+      body {
+        height: 100%;
+        padding: 1cm;
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-items: stretch;
+        align-items: center;
+      }
+
+      div.body1 {
+        gap: min(5cm, 10dvh);
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+        justify-content: space-evenly;
+        align-items: baseline;
+      }
+
+      div.section {
+        display: flex;
+        gap: 0.5cm;
+        width: min(12cm, 100%);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      h1 {
+        font-size: 3em;
+        font-weight: 400;
+      }
+
+      img {
+        width: 100%;
+      }
+
+      pre {
+        font-size: 1.8em;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="body1">
+      <div class="section">
+        <h1>WIFI</h1>
+        <img src="{{wifi_qr}}" />
+        <pre>{{wifi_ssid}}</pre>
+        <pre>{{wifi_password}}</pre>
+      </div>
+      <div class="section">
+        <h1>Spaghettinuum</h1>
+        <img src="{{identity_qr}}" />
+        <pre style="white-space: normal; overflow-wrap: anywhere">
+{{identity_id}}</pre
+        >
+      </div>
+    </div>
+  </body>
+</html>

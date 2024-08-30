@@ -1,7 +1,9 @@
 use {
-    crate::run,
+    crate::command::run,
+    flowcontrol::shed,
     loga::{
         ea,
+        Log,
         ResultContext,
     },
     rand::{
@@ -9,7 +11,6 @@ use {
         Rng,
     },
     serde::Deserialize,
-    spaghettinuum::bb,
     std::{
         collections::HashSet,
         fs::{
@@ -24,11 +25,19 @@ use {
             Write,
         },
         path::PathBuf,
-        process::Command,
+        process::{
+            Command,
+        },
         thread::sleep,
         time::Duration,
     },
 };
+
+pub fn notify(text: &str) {
+    run(
+        Command::new("notify-send").arg(text),
+    ).log(&Log::new_root(loga::INFO), loga::WARN, "Failed to send notification");
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -153,38 +162,38 @@ fn lsblk() -> Result<Vec<LsblkDevice>, loga::Error> {
     return Ok(root.blockdevices);
 }
 
-fn candidates() -> Result<HashSet<String>, loga::Error> {
-    return Ok(lsblk()?.into_iter().filter_map(|e| {
-        if e.type_ != "disk" {
-            return None;
-        }
-        if e.subsystems != "block:scsi:usb:pci" {
-            return None;
-        }
-
-        fn in_use(candidate: &LsblkDevice) -> bool {
-            if candidate.mountpoints.iter().filter(|p| p.is_some()).count() > 0 {
-                return true;
+pub fn interactive_select_usb_drive() -> Result<Option<PathBuf>, loga::Error> {
+    fn candidates() -> Result<HashSet<String>, loga::Error> {
+        return Ok(lsblk()?.into_iter().filter_map(|e| {
+            if e.type_ != "disk" {
+                return None;
             }
-            for child in &candidate.children {
-                if in_use(child) {
+            if e.subsystems != "block:scsi:usb:pci" {
+                return None;
+            }
+
+            fn in_use(candidate: &LsblkDevice) -> bool {
+                if candidate.mountpoints.iter().filter(|p| p.is_some()).count() > 0 {
                     return true;
                 }
+                for child in &candidate.children {
+                    if in_use(child) {
+                        return true;
+                    }
+                }
+                return false;
             }
-            return false;
-        }
 
-        if in_use(&e) {
-            return None;
-        }
-        return Some(e.path);
-    }).collect::<HashSet<_>>());
-}
+            if in_use(&e) {
+                return None;
+            }
+            return Some(e.path);
+        }).collect::<HashSet<_>>());
+    }
 
-pub fn select_usb_drive(purpose: &str) -> Result<Option<PathBuf>, loga::Error> {
     let by_id_dir = PathBuf::from("/dev/disk/by-id");
     let mut start_devs = candidates()?;
-    println!("Insert the USB drive to flash as a [{}] device.", purpose);
+    println!("Insert the USB drive to flash.");
     let mut stdin_lines = BufReader::new(stdin()).lines();
     let dest = 'found : loop {
         sleep(Duration::from_secs(1));
@@ -193,7 +202,7 @@ pub fn select_usb_drive(purpose: &str) -> Result<Option<PathBuf>, loga::Error> {
             let dest = PathBuf::from(dev);
 
             // Try to find a more verbose name
-            let dest = bb!{
+            let dest = shed!{
                 'found_long _;
                 for e in read_dir(
                     &by_id_dir,
@@ -219,9 +228,8 @@ pub fn select_usb_drive(purpose: &str) -> Result<Option<PathBuf>, loga::Error> {
 
             // Confirm
             println!(
-                "Do you want to use [{}] as a [{}] device? Its contents will be replaced.\nEnter [{}] to confirm or anything else to select another.",
+                "Do you want to use [{}]? Its contents will be replaced.\nEnter [{}] to confirm or anything else to select another.",
                 dest.to_string_lossy(),
-                purpose,
                 confirm
             );
             print!("> ");

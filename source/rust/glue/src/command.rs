@@ -2,7 +2,6 @@ use {
     loga::{
         ea,
         DebugDisplay,
-        Log,
         ResultContext,
     },
     std::process::{
@@ -10,8 +9,6 @@ use {
         Stdio,
     },
 };
-
-pub mod drive;
 
 pub fn run_(command: &mut Command) -> Result<std::process::Output, loga::Error> {
     return Ok((|| -> Result<std::process::Output, loga::Error> {
@@ -28,10 +25,4 @@ pub fn run(command: &mut Command) -> Result<std::process::Output, loga::Error> {
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
     return run_(command);
-}
-
-pub fn notify(text: &str) {
-    run(
-        Command::new("notify-send").arg(text),
-    ).log(&Log::new_root(loga::INFO), loga::WARN, "Failed to send notification");
 }

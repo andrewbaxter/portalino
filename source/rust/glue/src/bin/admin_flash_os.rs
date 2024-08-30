@@ -1,8 +1,10 @@
 use {
-    infra::{
-        drive::select_usb_drive,
-        notify,
-        run_,
+    glue::{
+        admin::{
+            interactive_select_usb_drive,
+            notify,
+        },
+        command::run_,
     },
     loga::{
         fatal,
@@ -21,7 +23,7 @@ fn main() {
                 .join("../../")
                 .canonicalize()
                 .context("Error getting project root absolute path")?;
-        let Some(dest) = select_usb_drive("os")? else {
+        let Some(dest) = interactive_select_usb_drive()? else {
             return Ok(());
         };
         run_(

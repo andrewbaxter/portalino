@@ -1,3 +1,2 @@
 #!/usr/bin/bash -xeu
-cd source/infra
-cargo run --bin build-os
+cargo run --manifest-path source/rust/glue/Cargo.toml --bin admin_build_os -- "$@"

@@ -1,0 +1,9 @@
+flush table ip6 my_table
+
+table ip6 my_table {
+  chain my_chain_input_modify_ra {
+    type filter hook input priority 0; policy accept;
+
+    iif enp37s0 meta l4proto ipv6-icmp icmpv6 type nd-router-advert mark != 1 queue num 0 
+  }
+}
