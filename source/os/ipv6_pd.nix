@@ -11,16 +11,14 @@ let const = import ./constants.nix; in {
           # don't wait for one.  This puts the interface in "configured" state.
           dhcpV6Config.UseAddress = "no";
           dhcpV6Config.UseDNS = "no";
-          linkConfig.ARP = "no";
         };
-        systemd.network.networks.self = {
+        systemd.network.networks.br0 = {
           matchConfig.Name = "br0";
           linkConfig.Group = 12;
           networkConfig.IPv6SendRA = "yes";
           networkConfig.DHCPPrefixDelegation = "yes";
           ipv6SendRAConfig.EmitDNS = "yes";
           ipv6SendRAConfig.DNS = "_link_local";
-          linkConfig.ARP = "no";
         };
         #networking.nftables.checkRuleset = false;
         networking.nftables.ruleset = ''
@@ -32,7 +30,7 @@ let const = import ./constants.nix; in {
           # Ipv6:
           table ip6 my_table {
             # Input:
-            chain my_chain_input_wan_self {
+            chain my_chain_input_wan_br0 {
               # Allow spagh traffic in
               udp dport { ${ builtins.toString const.spaghWanDhtPort } } accept
               tcp dport { ${ builtins.toString const.spaghWanPublishPort }, ${ builtins.toString const.spaghWanApiPort } } accept
@@ -48,7 +46,7 @@ let const = import ./constants.nix; in {
 
               iifgroup != 10 oifgroup 12 accept
 
-              iifgroup 10 oifgroup 12 goto my_chain_input_wan_self
+              iifgroup 10 oifgroup 12 goto my_chain_input_wan_br0
             }
 
             # Forwarding:

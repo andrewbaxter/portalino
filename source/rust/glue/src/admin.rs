@@ -193,7 +193,7 @@ pub fn interactive_select_usb_drive() -> Result<Option<PathBuf>, loga::Error> {
 
     let by_id_dir = PathBuf::from("/dev/disk/by-id");
     let mut start_devs = candidates()?;
-    println!("Insert the USB drive to flash.");
+    println!("Insert USB into flash drive.");
     let mut stdin_lines = BufReader::new(stdin()).lines();
     let dest = 'found : loop {
         sleep(Duration::from_secs(1));
@@ -228,7 +228,7 @@ pub fn interactive_select_usb_drive() -> Result<Option<PathBuf>, loga::Error> {
 
             // Confirm
             println!(
-                "Do you want to use [{}]? Its contents will be replaced.\nEnter [{}] to confirm or anything else to select another.",
+                "Do you want to use [{}]? Its contents will be replaced.\nEnter [{}] to confirm or anything else to try again.",
                 dest.to_string_lossy(),
                 confirm
             );

@@ -42,23 +42,23 @@ let const = import ./constants.nix; in ({ ... }: {
         volumesetup.enable = true;
 
         # Glue
-        systemd.services.glue =
-          let
-            pkg = (import ./package_glue.nix) { pkgs = pkgs; };
-          in
-          {
-            after = [ "volumesetup.service" ];
-            requires = [ "volumesetup.service" ];
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig.Type = "oneshot";
-            startLimitIntervalSec = 0;
-            serviceConfig.Restart = "on-failure";
-            serviceConfig.RestartSec = 60;
-            script = ''
-              set -xeu
-              exec ${pkg}/bin/setup
-            '';
-          };
+        #        systemd.services.glue =
+        #          let
+        #            pkg = (import ./package_glue.nix) { pkgs = pkgs; };
+        #          in
+        #          {
+        #            after = [ "volumesetup.service" ];
+        #            requires = [ "volumesetup.service" ];
+        #            wantedBy = [ "multi-user.target" ];
+        #            serviceConfig.Type = "oneshot";
+        #            startLimitIntervalSec = 0;
+        #            serviceConfig.Restart = "on-failure";
+        #            serviceConfig.RestartSec = 60;
+        #            script = ''
+        #              set -xeu
+        #              exec ${pkg}/bin/setup
+        #            '';
+        #          };
 
         # Network interfaces, routing
         networking.dhcpcd.enable = false;
@@ -82,65 +82,63 @@ let const = import ./constants.nix; in ({ ... }: {
               };
             })
           const.lanCount));
-        # services.hostapd.enable = true;
-        services.hostapd.enable = false; # debug
-        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_ra" = 0; # gets an addr despite being bridged, but shouldn't
-        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_dad" = 0; # same
-        services.hostapd.radios.wlan0 = {
-          networks.wlan0 = {
-            settings.bridge = "br0";
-            ssid = "";
-            dynamicConfigScripts = {
-              glue = pkgs.writeShellScript "hostapd-dynamic-config" ''
-                HOSTAPD_CONFIG=$1
-                sed -i '/^ssid=/d' "$HOSTAPD_CONFIG"
-                cat /run/my_hostapd/config >> "$HOSTAPD_CONFIG"
-              '';
-            };
-            authentication = {
-              mode = "wpa2-sha256";
-              wpaPasswordFile = "/run/my_hostapd/password";
-            };
-          };
-        };
-        systemd.services.hostapd = {
-          after = [ "glue.service" ];
-          postStart = ''
-            ${pkgs.iproute2}/bin/ip link set wlan0 group 11
-          '';
-          unitConfig.ConditionPathExists = "/run/my_hostapd/password";
-        };
+        #         services.hostapd.enable = true;
+        #        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_ra" = 0; # gets an addr despite being bridged, but shouldn't
+        #        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_dad" = 0; # same
+        #        services.hostapd.radios.wlan0 = {
+        #          networks.wlan0 = {
+        #            settings.bridge = "br0";
+        #            ssid = "";
+        #            dynamicConfigScripts = {
+        #              glue = pkgs.writeShellScript "hostapd-dynamic-config" ''
+        #                HOSTAPD_CONFIG=$1
+        #                sed -i '/^ssid=/d' "$HOSTAPD_CONFIG"
+        #                cat /run/my_hostapd/config >> "$HOSTAPD_CONFIG"
+        #              '';
+        #            };
+        #            authentication = {
+        #              mode = "wpa2-sha256";
+        #              wpaPasswordFile = "/run/my_hostapd/password";
+        #            };
+        #          };
+        #        };
+        #        systemd.services.hostapd = {
+        #          after = [ "glue.service" ];
+        #          postStart = ''
+        #            ${pkgs.iproute2}/bin/ip link set wlan0 group 11
+        #          '';
+        #          unitConfig.ConditionPathExists = "/run/my_hostapd/password";
+        #        };
 
         # Firewall - further configuration based on ipv6 mode
         networking.firewall.enable = false;
-        #networking.nftables.enable = true;
-        networking.nftables.enable = false; # debug
+        networking.nftables.enable = true;
         systemd.services.nftables = {
           startLimitIntervalSec = 0;
           serviceConfig.Restart = "on-failure";
           serviceConfig.RestartSec = 60;
         };
-        systemd.services.systemd-networkd.environment.SYSTEMD_LOG_LEVEL = "debug";
-        systemd.services.setup_flowtables = {
-          enable = false; # debug
-          wantedBy = [ "multi-user.target" ];
-          serviceConfig.Type = "oneshot";
-          startLimitIntervalSec = 0;
-          serviceConfig.Restart = "on-failure";
-          serviceConfig.RestartSec = 60;
-        };
+        #        systemd.services.systemd-networkd.environment.SYSTEMD_LOG_LEVEL = "debug";
+        #        systemd.services.setup_flowtables = {
+        #          enable = false; # debug
+        #          wantedBy = [ "multi-user.target" ];
+        #          serviceConfig.Type = "oneshot";
+        #          startLimitIntervalSec = 0;
+        #          serviceConfig.Restart = "on-failure";
+        #          serviceConfig.RestartSec = 60;
+        #        };
 
         # Ssh, admin
-        services.openssh = {
-          enable = true;
-          listenAddresses = [{
-            addr = "[::]";
-            port = 22;
-          }];
-        };
-        users.users.root.openssh.authorizedKeys.keyFiles = lib.lists.optionals (ssh_authorized_keys_dir != null) (
-          map (x: ssh_authorized_keys_dir + "/${x}") (builtins.attrNames (builtins.readDir ssh_authorized_keys_dir))
-        );
+        #        services.openssh = {
+        #          enable = true;
+        #          listenAddresses = [{
+        #            addr = "[::]";
+        #            port = 22;
+        #          }];
+        #        };
+        #        users.users.root.openssh.authorizedKeys.keyFiles = lib.lists.optionals (ssh_authorized_keys_dir != null) (
+        #          map (x: ssh_authorized_keys_dir + "/${x}") (builtins.attrNames (builtins.readDir ssh_authorized_keys_dir))
+        #        );
         environment.systemPackages = [
           # Basic tools
           pkgs.vim
@@ -166,29 +164,30 @@ let const = import ./constants.nix; in ({ ... }: {
           pkgs.ndisc6
           pkgs.dig
           pkgs.knot-dns
+          pkgs.nftables
         ];
 
         # Spaghettinuum
-        services.resolved.enable = false;
-        systemd.services.spaghettinuum =
-          let
-            pkg = import ../rust/spaghettinuum/source/package.nix { pkgs = pkgs; };
-            config_path = pkgs.writeText "spaghettinuum_config" spaghettinuum_config;
-          in
-          {
-            after = [ "glue.service" ];
-            requires = [ "glue.service" ];
-            wantedBy = [ "multi-user.target" ];
-            serviceConfig.Type = "simple";
-            startLimitIntervalSec = 0;
-            serviceConfig.Restart = "on-failure";
-            serviceConfig.RestartSec = 60;
-            script = ''
-              set -xeu
-              exec ${pkg}/bin/spagh-node --config ${config_path} --debug dns dns-s dns-non-s
-            '';
-          };
-        networking.nameservers = [ "127.0.0.1" ];
+        #        services.resolved.enable = false;
+        #        systemd.services.spaghettinuum =
+        #          let
+        #            pkg = import ../rust/spaghettinuum/source/package.nix { pkgs = pkgs; };
+        #            config_path = pkgs.writeText "spaghettinuum_config" spaghettinuum_config;
+        #          in
+        #          {
+        #            after = [ "glue.service" ];
+        #            requires = [ "glue.service" ];
+        #            wantedBy = [ "multi-user.target" ];
+        #            serviceConfig.Type = "simple";
+        #            startLimitIntervalSec = 0;
+        #            serviceConfig.Restart = "always";
+        #            serviceConfig.RestartSec = 60;
+        #            script = ''
+        #              set -xeu
+        #              exec ${pkg}/bin/spagh-node --config ${config_path} --debug dns dns-s dns-non-s
+        #            '';
+        #          };
+        #        networking.nameservers = [ "127.0.0.1" ];
 
         # DEBUG
         users.users.root.password = "abcd";
