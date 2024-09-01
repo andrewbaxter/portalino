@@ -42,28 +42,38 @@ let const = import ./constants.nix; in ({ ... }: {
         volumesetup.enable = true;
 
         # Glue
-        #        systemd.services.glue =
-        #          let
-        #            pkg = (import ./package_glue.nix) { pkgs = pkgs; };
-        #          in
-        #          {
-        #            after = [ "volumesetup.service" ];
-        #            requires = [ "volumesetup.service" ];
-        #            wantedBy = [ "multi-user.target" ];
-        #            serviceConfig.Type = "oneshot";
-        #            startLimitIntervalSec = 0;
-        #            serviceConfig.Restart = "on-failure";
-        #            serviceConfig.RestartSec = 60;
-        #            script = ''
-        #              set -xeu
-        #              exec ${pkg}/bin/setup
-        #            '';
-        #          };
+        systemd.services.glue =
+          let
+            pkg = (import ./package_glue.nix) { pkgs = pkgs; };
+          in
+          {
+            after = [ "volumesetup.service" ];
+            requires = [ "volumesetup.service" ];
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig.Type = "oneshot";
+            startLimitIntervalSec = 0;
+            serviceConfig.Restart = "on-failure";
+            serviceConfig.RestartSec = 60;
+            script = ''
+              set -xeu
+              exec ${pkg}/bin/setup
+            '';
+          };
 
         # Network interfaces, routing
         networking.dhcpcd.enable = false;
         networking.useDHCP = false;
         systemd.network.enable = true;
+        systemd.network.links.all = {
+          matchConfig.OriginalName = "*";
+          # Per jool docs, routers (+ esp jool) should have this disabled. Offload refers to hardware offload
+          # of packet de-fragmentation. It's normally for application consumption, but if going back to the internet
+          # the packets need to be re-fragmented which is slow.
+          #
+          # I guess linux automatically disables this when routing, but just to be sure (as jool instructs).
+          linkConfig.GenericSegmentationOffload = "no";
+          linkConfig.LargeReceiveOffload = "no";
+        };
         systemd.network.netdevs.br0 = {
           netdevConfig.Kind = "bridge";
           netdevConfig.Name = "br0";
@@ -82,33 +92,33 @@ let const = import ./constants.nix; in ({ ... }: {
               };
             })
           const.lanCount));
-        #         services.hostapd.enable = true;
-        #        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_ra" = 0; # gets an addr despite being bridged, but shouldn't
-        #        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_dad" = 0; # same
-        #        services.hostapd.radios.wlan0 = {
-        #          networks.wlan0 = {
-        #            settings.bridge = "br0";
-        #            ssid = "";
-        #            dynamicConfigScripts = {
-        #              glue = pkgs.writeShellScript "hostapd-dynamic-config" ''
-        #                HOSTAPD_CONFIG=$1
-        #                sed -i '/^ssid=/d' "$HOSTAPD_CONFIG"
-        #                cat /run/my_hostapd/config >> "$HOSTAPD_CONFIG"
-        #              '';
-        #            };
-        #            authentication = {
-        #              mode = "wpa2-sha256";
-        #              wpaPasswordFile = "/run/my_hostapd/password";
-        #            };
-        #          };
-        #        };
-        #        systemd.services.hostapd = {
-        #          after = [ "glue.service" ];
-        #          postStart = ''
-        #            ${pkgs.iproute2}/bin/ip link set wlan0 group 11
-        #          '';
-        #          unitConfig.ConditionPathExists = "/run/my_hostapd/password";
-        #        };
+        services.hostapd.enable = true;
+        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_ra" = 0; # gets an addr despite being bridged, but shouldn't
+        boot.kernel.sysctl."net.ipv6.conf.wlan0.accept_dad" = 0; # same
+        services.hostapd.radios.wlan0 = {
+          networks.wlan0 = {
+            settings.bridge = "br0";
+            ssid = "";
+            dynamicConfigScripts = {
+              glue = pkgs.writeShellScript "hostapd-dynamic-config" ''
+                HOSTAPD_CONFIG=$1
+                sed -i '/^ssid=/d' "$HOSTAPD_CONFIG"
+                cat /run/my_hostapd/config >> "$HOSTAPD_CONFIG"
+              '';
+            };
+            authentication = {
+              mode = "wpa2-sha256";
+              wpaPasswordFile = "/run/my_hostapd/password";
+            };
+          };
+        };
+        systemd.services.hostapd = {
+          after = [ "glue.service" ];
+          postStart = ''
+            ${pkgs.iproute2}/bin/ip link set wlan0 group 11
+          '';
+          unitConfig.ConditionPathExists = "/run/my_hostapd/password";
+        };
 
         # Firewall - further configuration based on ipv6 mode
         networking.firewall.enable = false;
@@ -118,27 +128,19 @@ let const = import ./constants.nix; in ({ ... }: {
           serviceConfig.Restart = "on-failure";
           serviceConfig.RestartSec = 60;
         };
-        #        systemd.services.systemd-networkd.environment.SYSTEMD_LOG_LEVEL = "debug";
-        #        systemd.services.setup_flowtables = {
-        #          enable = false; # debug
-        #          wantedBy = [ "multi-user.target" ];
-        #          serviceConfig.Type = "oneshot";
-        #          startLimitIntervalSec = 0;
-        #          serviceConfig.Restart = "on-failure";
-        #          serviceConfig.RestartSec = 60;
-        #        };
+        # systemd.services.systemd-networkd.environment.SYSTEMD_LOG_LEVEL = "debug";
 
         # Ssh, admin
-        #        services.openssh = {
-        #          enable = true;
-        #          listenAddresses = [{
-        #            addr = "[::]";
-        #            port = 22;
-        #          }];
-        #        };
-        #        users.users.root.openssh.authorizedKeys.keyFiles = lib.lists.optionals (ssh_authorized_keys_dir != null) (
-        #          map (x: ssh_authorized_keys_dir + "/${x}") (builtins.attrNames (builtins.readDir ssh_authorized_keys_dir))
-        #        );
+        services.openssh = {
+          enable = true;
+          listenAddresses = [{
+            addr = "[::]";
+            port = 22;
+          }];
+        };
+        users.users.root.openssh.authorizedKeys.keyFiles = lib.lists.optionals (ssh_authorized_keys_dir != null) (
+          map (x: ssh_authorized_keys_dir + "/${x}") (builtins.attrNames (builtins.readDir ssh_authorized_keys_dir))
+        );
         environment.systemPackages = [
           # Basic tools
           pkgs.vim
@@ -168,26 +170,33 @@ let const = import ./constants.nix; in ({ ... }: {
         ];
 
         # Spaghettinuum
-        #        services.resolved.enable = false;
-        #        systemd.services.spaghettinuum =
-        #          let
-        #            pkg = import ../rust/spaghettinuum/source/package.nix { pkgs = pkgs; };
-        #            config_path = pkgs.writeText "spaghettinuum_config" spaghettinuum_config;
-        #          in
-        #          {
-        #            after = [ "glue.service" ];
-        #            requires = [ "glue.service" ];
-        #            wantedBy = [ "multi-user.target" ];
-        #            serviceConfig.Type = "simple";
-        #            startLimitIntervalSec = 0;
-        #            serviceConfig.Restart = "always";
-        #            serviceConfig.RestartSec = 60;
-        #            script = ''
-        #              set -xeu
-        #              exec ${pkg}/bin/spagh-node --config ${config_path} --debug dns dns-s dns-non-s
-        #            '';
-        #          };
-        #        networking.nameservers = [ "127.0.0.1" ];
+        services.resolved.enable = false;
+        security.pki.certificateFiles = [
+          (pkgs.fetchurl {
+            url = "https://storage.googleapis.com/zlr7wmbe6/spaghettinuum_s.crt";
+            # 2024-09-01
+            hash = "sha256-AxxOtl1USf/86Xd4UhS6fTptaj+D9UqD1ertQqo4kEg=";
+          })
+        ];
+        systemd.services.spaghettinuum =
+          let
+            pkg = import ../rust/spaghettinuum/source/package.nix { pkgs = pkgs; };
+            config_path = pkgs.writeText "spaghettinuum_config" spaghettinuum_config;
+          in
+          {
+            after = [ "glue.service" ];
+            requires = [ "glue.service" ];
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig.Type = "simple";
+            startLimitIntervalSec = 0;
+            serviceConfig.Restart = "always";
+            serviceConfig.RestartSec = 60;
+            script = ''
+              set -xeu
+              exec ${pkg}/bin/spagh-node --config ${config_path} --debug dns
+            '';
+          };
+        networking.nameservers = [ "127.0.0.1" ];
 
         # DEBUG
         users.users.root.password = "abcd";

@@ -21,7 +21,7 @@
       chmod -R u+w rw
       cd rw/glue
     '';
-    cargoBuildFlags = [ "--bin=setup" "--bin=modify_ra" ];
+    cargoBuildFlags = [ "--bin=setup" "--bin=inject_dns" ];
     buildInputs = [
       sqlite
     ];

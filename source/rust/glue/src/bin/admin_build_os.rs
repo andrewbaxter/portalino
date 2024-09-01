@@ -73,14 +73,15 @@ fn main() {
         let args = vark::<Args>();
         let root =
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../")
+                .join("../../../")
                 .canonicalize()
                 .context("Error getting project root absolute path")?;
         let stage_dir = root.join("stage");
         create_dir_all(&stage_dir).context("Error ensuring staging dir")?;
         let mut command = Command::new("nix");
         command.arg("build").arg("-o").arg(stage_dir.join("imageout"));
-        command.arg("--offline");
+
+        //. command.arg("--offline");
         match args.ipv4_mode.unwrap_or_default() {
             Ipv4Mode::UpstreamNat64 => {
                 command.arg("-f").arg("source/os/main_nat64.nix");
@@ -131,7 +132,7 @@ fn main() {
                                 adn: Some("dns64.dns.google".to_string()),
                             }
                         ]),
-                        synthetic_self_record: Some("portalino".to_string()),
+                        synthetic_self_record: Some("portalino.internal".to_string()),
                         ..Default::default()
                     }),
                     ..Default::default()

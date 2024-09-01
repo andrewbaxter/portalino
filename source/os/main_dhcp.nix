@@ -14,8 +14,8 @@ buildSystem ({ ... }: {
     ./ipv6_bridge.nix
     ({ pkgs, lib, ... }: {
       config = {
-        systemd.network.networks.ipv4wan = {
-          DHCP = "ipv4";
+        systemd.network.networks.eth0 = {
+          DHCP = "yes";
         };
         networking.jool.enable = true;
         networking.jool.nat64.default = { };

@@ -38,43 +38,33 @@ let const = import ./constants.nix; in {
 
             chain my_chain_input {
               type filter hook input priority 0; policy drop;
+
               ct state vmap { established : accept, related : accept, invalid : drop }
 
               iif lo accept
 
               meta l4proto ipv6-icmp accept
 
-              iifgroup != 10 oifgroup 12 accept
+              iifgroup 11 oifgroup 12 accept
 
               iifgroup 10 oifgroup 12 goto my_chain_input_wan_br0
             }
 
-            # Forwarding:
-            chain my_chain_add_flowtable {
-              flow add @my_ft_hw_offload
+            flowtable my_ft_default { 
+              hook ingress priority 0;
+
+              devices = { eth0, br0 }
             }
 
             chain my_chain_forward {
-              type filter hook forward priority 0; policy drop;
+              type filter hook forward priority 0; policy accept;
               
-              ip6 nexthdr { tcp, udp } jump my_chain_add_flowtable
+              ip6 nexthdr { tcp, udp } flow add @my_ft_default
 
               ct state vmap { established : accept, related : accept, invalid : drop }
             }
           }
         '';
-        systemd.services.setup_flowtables.script =
-          let
-            lanElements = lib.concatStringsSep ", " (builtins.genList
-              (i: "eth${builtins.toString (i + 1)}")
-              const.lanCount);
-          in
-          ''
-            set -xeu
-            ${pkgs.nftables}/bin/nft 'add flowtable ip6 my_table my_ft_default { hook ingress priority 0; devices = { eth0, ${lanElements}, wlan0 }; }'
-            ${pkgs.nftables}/bin/nft 'flush chain ip6 my_table my_chain_add_flowtable'
-            ${pkgs.nftables}/bin/nft 'add rule ip6 my_table my_chain_add_flowtable flow add @my_ft_default'
-          '';
         environment.systemPackages = [
           (pkgs.writeShellScriptBin "nftables_debug" (
             let chain = "my_trace"; in ''
