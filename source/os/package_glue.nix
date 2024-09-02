@@ -33,7 +33,7 @@
     ];
     postFixup =
       let
-        path = lib.makeBinPath [ pkgs.systemd ];
+        path = lib.makeBinPath [ pkgs.systemd pkgs.iproute2 ];
       in
       ''
         wrapProgram $out/bin/setup --prefix PATH : ${path}

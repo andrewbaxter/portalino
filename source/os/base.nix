@@ -17,16 +17,16 @@ let const = import ./constants.nix; in ({ ... }: {
         };
         #boot.consoleLogLevel = lib.mkDefault 7;
         systemd.targets.sound.enable = false;
-        #systemd.targets.getty = {
-        #  # Prevent login terminal, prevent screen wipe
-        #  enable = false;
-        #};
-        #services.logind = {
-        #  extraConfig = lib.strings.concatStringsSep "\n" [
-        #    "NAutoVTs=0"
-        #    "ReserveVT=0"
-        #  ];
-        #};
+        systemd.targets.getty = {
+          # Prevent login terminal, prevent screen wipe
+          enable = false;
+        };
+        services.logind = {
+          extraConfig = lib.strings.concatStringsSep "\n" [
+            "NAutoVTs=0"
+            "ReserveVT=0"
+          ];
+        };
         services.journald = {
           console = "/dev/tty0";
           extraConfig = lib.strings.concatStringsSep "\n" [
@@ -36,13 +36,14 @@ let const = import ./constants.nix; in ({ ... }: {
         };
 
         networking.hostName = "portalino";
-        #users.users.root.hashedPassword = "!";
+        users.users.root.hashedPassword = "!";
+        # users.users.root.password = "abcd";
 
         # Disk 
         volumesetup.enable = true;
 
         # Glue
-        systemd.services.glue =
+        systemd.services.glue_setup =
           let
             pkg = (import ./package_glue.nix) { pkgs = pkgs; };
           in
@@ -60,10 +61,10 @@ let const = import ./constants.nix; in ({ ... }: {
               exec ${pkg}/bin/setup
             '';
           };
-        systemd.services.systemd-networkd.after = [ "glue.service" ];
+        systemd.services.systemd-networkd.after = [ "glue_setup.service" ];
         systemd.services.info_http = {
-          after = [ "glue.service" ];
-          requires = [ "glue.service" ];
+          after = [ "glue_setup.service" ];
+          requires = [ "glue_setup.service" ];
           wantedBy = [ "multi-user.target" ];
           serviceConfig.Type = "simple";
           startLimitIntervalSec = 0;
@@ -128,7 +129,7 @@ let const = import ./constants.nix; in ({ ... }: {
           };
         };
         systemd.services.hostapd = {
-          after = [ "glue.service" ];
+          after = [ "glue_setup.service" ];
           postStart = ''
             ${pkgs.iproute2}/bin/ip link set wlan0 group 11
           '';
@@ -202,8 +203,8 @@ let const = import ./constants.nix; in ({ ... }: {
             config_path = pkgs.writeText "spaghettinuum_config" spaghettinuum_config;
           in
           {
-            after = [ "glue.service" ];
-            requires = [ "glue.service" ];
+            after = [ "glue_setup.service" "sshd.service" ];
+            requires = [ "glue_setup.service" "sshd.service" ];
             wantedBy = [ "multi-user.target" ];
             serviceConfig.Type = "simple";
             startLimitIntervalSec = 0;
@@ -215,9 +216,6 @@ let const = import ./constants.nix; in ({ ... }: {
             '';
           };
         networking.nameservers = [ "127.0.0.1" ];
-
-        # DEBUG
-        users.users.root.password = "abcd";
       };
     })
     (import ./nixshared/iso/mod.nix {

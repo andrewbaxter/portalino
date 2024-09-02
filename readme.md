@@ -24,6 +24,8 @@ This should work on any linux-capable hardware with 2 ethernet ports and an atta
 
 The OS is immutable (aside from limited config and caches stored on a persistent disk). To upgrade, flash a new version to the USB drive and reboot.
 
+Current status: Alpha. PPP has been tested, the other modes less so.
+
 ## Images
 
 There are several configurations, depending on your ISP:

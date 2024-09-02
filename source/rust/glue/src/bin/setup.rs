@@ -79,7 +79,7 @@ fn main() {
             ).context_with("Error creating dirs for override", ea!(path = override_path.dbg_str()))?;
             write(
                 &override_path,
-                format!("[Link]\nMACAddress={}\n", eth0.address),
+                format!("[NetDev]\nMACAddress={}\n", eth0.address),
             ).context_with("Error writing br0 override", ea!(path = override_path.dbg_str()))?;
         }
 

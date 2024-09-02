@@ -18,7 +18,7 @@ in
           linkConfig.Group = 12;
         };
         systemd.services.setup_nftables_jool_mangle = {
-          # jool only listens on layer 3 prerouting, so need to forcibly redirect bridge traffic. Pointing
+          # Jool only listens on layer 3 prerouting, so need to forcibly redirect bridge traffic. Pointing
           # it at the local bridge interface passes it through bridge-input then ip6-prerouting and is captured by
           # jool properly.
           #
