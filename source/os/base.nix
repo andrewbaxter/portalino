@@ -51,6 +51,7 @@ let const = import ./constants.nix; in ({ ... }: {
             requires = [ "volumesetup.service" ];
             wantedBy = [ "multi-user.target" ];
             serviceConfig.Type = "oneshot";
+            serviceConfig.RemainAfterExit = "yes";
             startLimitIntervalSec = 0;
             serviceConfig.Restart = "on-failure";
             serviceConfig.RestartSec = 60;
@@ -59,6 +60,19 @@ let const = import ./constants.nix; in ({ ... }: {
               exec ${pkg}/bin/setup
             '';
           };
+        systemd.services.info_http = {
+          after = [ "glue.service" ];
+          requires = [ "glue.service" ];
+          wantedBy = [ "multi-user.target" ];
+          serviceConfig.Type = "simple";
+          startLimitIntervalSec = 0;
+          serviceConfig.Restart = "always";
+          serviceConfig.RestartSec = 60;
+          script = ''
+            set -xeu
+            exec ${pkgs.caddy}/bin/caddy file-server --listen :80 --root /run/my_infohtml
+          '';
+        };
 
         # Network interfaces, routing
         networking.dhcpcd.enable = false;
@@ -133,6 +147,8 @@ let const = import ./constants.nix; in ({ ... }: {
         # Ssh, admin
         services.openssh = {
           enable = true;
+          settings.PasswordAuthentication = false;
+          settings.KbdInteractiveAuthentication = false;
           listenAddresses = [{
             addr = "[::]";
             port = 22;
@@ -167,6 +183,7 @@ let const = import ./constants.nix; in ({ ... }: {
           pkgs.dig
           pkgs.knot-dns
           pkgs.nftables
+          pkgs.ethtool
         ];
 
         # Spaghettinuum
@@ -193,7 +210,7 @@ let const = import ./constants.nix; in ({ ... }: {
             serviceConfig.RestartSec = 60;
             script = ''
               set -xeu
-              exec ${pkg}/bin/spagh-node --config ${config_path} --debug dns
+              exec ${pkg}/bin/spagh-node --config ${config_path}
             '';
           };
         networking.nameservers = [ "127.0.0.1" ];

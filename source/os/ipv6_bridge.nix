@@ -2,7 +2,7 @@
 let
   const = import ./constants.nix;
   inject_dns_queue = builtins.toString 0;
-  inject_dns_mark = builtins.toString 1;
+  inject_dns_mark = builtins.toString 2;
 in
 {
   imports = [
@@ -27,6 +27,7 @@ in
           after = [ "nftables.service" ];
           wantedBy = [ "multi-user.target" ];
           serviceConfig.Type = "oneshot";
+          serviceConfig.RemainAfterExit = "yes";
           startLimitIntervalSec = 0;
           serviceConfig.Restart = "on-failure";
           serviceConfig.RestartSec = 60;
@@ -43,57 +44,50 @@ in
               const.lanCount);
           in
           ''
-            #table ip6 my_table {
-            #  chain my_chain_input_wan_br0 {
-            #    # Allow spagh traffic in
-            #    udp dport { ${ builtins.toString const.spaghWanDhtPort } } accept
-            #    tcp dport { ${ builtins.toString const.spaghWanPublishPort }, ${ builtins.toString const.spaghWanApiPort } } accept
-            #  }
-
-            #  chain my_chain_input {
-            #    type filter hook input priority 0; policy drop;
-
-            #    ct state vmap { established : accept, related : accept, invalid : drop }
-
-            #    iif lo accept
-
-            #    meta l4proto ipv6-icmp accept
-
-            #    # Allow all lan traffic
-            #    iifgroup 11 oifgroup 12 accept
-
-            #    # Allow restricted wan traffic
-            #    iifgroup 10 oifgroup 12 goto my_chain_input_wan_br0
-            #  }
-
-            #  chain my_chain_add_flowtable {
-            #    # Populated after all devices created
-            #  }
-
-            #  chain my_chain_forward {
-            #    type filter hook forward priority 0; policy accept;
-
-            #    ip6 nexthdr { tcp, udp } jump my_chain_add_flowtable
-            #  }
-            #}
-
             table bridge my_table {
-              chain my_chain_add_flowtable {
-                # Populated after all devices created
+              chain my_chain_prerouting {
+                type filter hook prerouting priority 0; policy accept;
+          
+                # Mark RAs + DHCPv6 responses to pass them to glue inject_dns which consumes/modifies.
+                # Only want to modify the ones to forward - the ones destined locally are used
+                # to set interface ips which are required for inject_dns to work (dep ordering).
+                mark 0 meta l4proto ipv6-icmp icmpv6 type nd-router-advert mark set 1
+                mark 0 meta l4proto udp th sport 547 mark set 1
+
+                # Mark other traffic by originating network
+                mark 0 iifgroup 10 mark set 10
+                mark 0 iifgroup 11 mark set 11
+                mark 0 iifgroup 12 mark set 12
               }
 
               chain my_chain_forward {
-                type filter hook forward priority 0; policy drop;
-          
-                # Intercept RAs + DHCPv6 responses and pass them to glue modify_ra which consumes/modifies
-                meta l4proto ipv6-icmp icmpv6 type nd-router-advert mark != ${inject_dns_mark} queue num ${inject_dns_queue}
-                meta l4proto udp th sport 547 mark != ${inject_dns_mark} queue num ${inject_dns_queue}
+                type filter hook forward priority 0; policy accept;
 
-                ip6 nexthdr { tcp, udp } jump my_chain_add_flowtable
+                mark 1 queue num ${inject_dns_queue}
+              }
+            }
+
+            table ip6 my_table {
+              chain my_chain_input_wan_br0 {
+                # Allow spagh traffic in
+                udp dport { ${ builtins.toString const.spaghWanDhtPort } } accept
+                tcp dport { ${ builtins.toString const.spaghWanPublishPort }, ${ builtins.toString const.spaghWanApiPort } } accept
+              }
+
+              chain my_chain_input {
+                type filter hook input priority 0; policy drop;
 
                 ct state vmap { established : accept, related : accept, invalid : drop }
 
-                ether type ip6 accept
+                iif lo accept
+
+                meta l4proto ipv6-icmp accept
+
+                # Allow all lan traffic
+                mark 11 accept
+
+                # Allow restricted wan traffic
+                mark 10 goto my_chain_input_wan_br0
               }
             }
           '';

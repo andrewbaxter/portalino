@@ -12,10 +12,6 @@ use {
         ResultContext,
     },
     spaghettinuum::interface::config::{
-        content::{
-            ContentConfig,
-            ServeMode,
-        },
         node::{
             api_config::ApiConfig,
             node_config::NodeConfig,
@@ -30,7 +26,6 @@ use {
             GlobalAddrConfig,
             IdentitySecretArg,
             IpVer,
-            StrSocketAddr,
         },
     },
     std::{
@@ -61,7 +56,6 @@ impl Default for Ipv4Mode {
 }
 
 #[derive(Aargvark)]
-#[vark(break_help)]
 struct Args {
     #[vark(flag = "--ipv4-mode")]
     ipv4_mode: Option<Ipv4Mode>,
@@ -137,10 +131,6 @@ fn main() {
                     }),
                     ..Default::default()
                 }),
-                content: Some(vec![ContentConfig {
-                    bind_addrs: vec![StrSocketAddr::new("[::]:443")],
-                    mode: ServeMode::StaticFiles { content_dir: PathBuf::from("/run/my_infohtml") },
-                }]),
                 ..Default::default()
             }).unwrap());
         if let Some(d) = args.ssh_authorized_keys_dir {
