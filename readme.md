@@ -2,6 +2,8 @@
 
 This is a Spaghettinuum-enabled IPv6 only drop in network router/gateway image. Just flash a drive, plug it in, and boot.
 
+It is intended for hosting/public networks, and inbound traffic is not filtered (except to LAN services like NAT64). Connected devices should be secured as if they were on a public network.
+
 It has several features:
 
 - Spaghettinuum node with DNS resolver set up to use DNS64 upstream servers

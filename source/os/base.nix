@@ -49,7 +49,7 @@ let const = import ./constants.nix; in ({ ... }: {
           {
             after = [ "volumesetup.service" ];
             requires = [ "volumesetup.service" ];
-            wantedBy = [ "multi-user.target" ];
+            wantedBy = [ "volumesetup.service" ];
             serviceConfig.Type = "oneshot";
             serviceConfig.RemainAfterExit = "yes";
             startLimitIntervalSec = 0;
@@ -60,6 +60,7 @@ let const = import ./constants.nix; in ({ ... }: {
               exec ${pkg}/bin/setup
             '';
           };
+        systemd.services.systemd-networkd.after = [ "glue.service" ];
         systemd.services.info_http = {
           after = [ "glue.service" ];
           requires = [ "glue.service" ];

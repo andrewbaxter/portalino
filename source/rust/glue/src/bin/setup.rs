@@ -55,6 +55,34 @@ fn main() {
         _ = vark::<Args>();
         let log = Log::new_root(loga::INFO);
 
+        // Prep br0 mac address
+        {
+            let output =
+                run(Command::new("ip").arg("--json").arg("link")).context("Error getting net link info")?;
+
+            #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+            struct IpLink {
+                pub ifname: String,
+                pub address: String,
+            }
+
+            let links =
+                serde_json::from_slice::<Vec<IpLink>>(
+                    &output.stdout,
+                ).context_with("Error parsing net link info", ea!(output = output.dbg_str()))?;
+            let Some(eth0) = links.into_iter().find(|l| &l.ifname == "eth0") else {
+                return Err(loga::err("Couldn't find eth0 in ip link output"));
+            };
+            let override_path = PathBuf::from("/etc/systemd/network/br0.netdev.d/50-macaddr.conf");
+            create_dir_all(
+                &override_path.parent().unwrap(),
+            ).context_with("Error creating dirs for override", ea!(path = override_path.dbg_str()))?;
+            write(
+                &override_path,
+                format!("[Link]\nMACAddress={}\n", eth0.address),
+            ).context_with("Error writing br0 override", ea!(path = override_path.dbg_str()))?;
+        }
+
         // Create identity
         let identity_path = PathBuf::from("/mnt/persistent/portalino.ident");
         let identity = superif!({
