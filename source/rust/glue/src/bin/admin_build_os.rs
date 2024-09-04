@@ -110,7 +110,7 @@ fn main() {
                                 adn: Some("dns64.cloudflare-dns.com".to_string()),
                             },
                             AdnSocketAddr {
-                                ip: IpAddr::from_str("2606:4700:4700::6464").unwrap(),
+                                ip: IpAddr::from_str("2606:4700:4700::6400").unwrap(),
                                 port: None,
                                 adn: Some("dns64.cloudflare-dns.com".to_string()),
                             },
