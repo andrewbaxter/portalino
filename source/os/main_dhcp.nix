@@ -1,4 +1,5 @@
 { spaghettinuum_config
+, override_mtu ? null
 , ssh_authorized_keys_dir ? null
 }:
 let
@@ -11,7 +12,7 @@ in
 buildSystem ({ ... }: {
   imports = [
     (import ./base.nix { spaghettinuum_config = spaghettinuum_config; ssh_authorized_keys_dir = ssh_authorized_keys_dir; })
-    ./ipv6_bridge.nix
+    (import ./ipv6_bridge.nix { override_mtu = override_mtu; })
     ({ pkgs, lib, ... }: {
       config = {
         systemd.network.networks.eth0 = {

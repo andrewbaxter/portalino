@@ -1,8 +1,8 @@
-{ ... }:
+{ override_mtu ? null }: { ... }:
 let
   const = import ./constants.nix;
-  inject_dns_queue = builtins.toString 0;
-  inject_dns_mark = builtins.toString 2;
+  mangle_ip_configure_queue = builtins.toString 0;
+  mangle_ip_configure_mark = builtins.toString 2;
 in
 {
   imports = [
@@ -17,7 +17,7 @@ in
           matchConfig.Name = "br0";
           linkConfig.Group = 12;
         };
-        systemd.services.setup_nftables_jool_mangle = {
+        systemd.services.setup_nftables_mangle_jool = {
           # Jool only listens on layer 3 prerouting, so need to forcibly redirect bridge traffic. Pointing
           # it at the local bridge interface passes it through bridge-input then ip6-prerouting and is captured by
           # jool properly.
@@ -33,7 +33,7 @@ in
           serviceConfig.RestartSec = 60;
           script = ''
             bridge_addr=$(${pkgs.iproute2}/bin/ip --json link show br0 | ${pkgs.jq}/bin/jq -r .[0].address)
-            ${pkgs.nftables}/bin/nft -f <(sed -e "s/__BRIDGE_ADDR/$bridge_addr/g" ${./ipv6_bridge_template_jool_mangle.nftables})
+            ${pkgs.nftables}/bin/nft -f <(sed -e "s/__BRIDGE_ADDR/$bridge_addr/g" ${./ipv6_bridge_template_mangle_jool.nftables})
           '';
         };
         networking.nftables.checkRuleset = false;
@@ -48,9 +48,9 @@ in
               chain my_chain_prerouting {
                 type filter hook prerouting priority 0; policy accept;
           
-                # Mark RAs + DHCPv6 responses to pass them to glue inject_dns which consumes/modifies.
+                # Mark RAs + DHCPv6 responses to pass them to glue mangle_ip_configure which consumes/modifies.
                 # Only want to modify the ones to forward - the ones destined locally are used
-                # to set interface ips which are required for inject_dns to work (dep ordering).
+                # to set interface ips which are required for mangle_ip_configure to work (dep ordering).
                 mark 0 meta l4proto ipv6-icmp icmpv6 type nd-router-advert mark set 1
                 mark 0 meta l4proto udp th sport 547 mark set 1
 
@@ -63,7 +63,7 @@ in
               chain my_chain_forward {
                 type filter hook forward priority 0; policy accept;
 
-                mark 1 queue num ${inject_dns_queue}
+                mark 1 queue num ${mangle_ip_configure_queue}
               }
             }
 
@@ -91,7 +91,7 @@ in
               }
             }
           '';
-        systemd.services.glue_inject_dns = {
+        systemd.services.glue_mangle_ip_configure = {
           wantedBy = [ "nftables.service" ];
           serviceConfig.Type = "simple";
           startLimitIntervalSec = 0;
@@ -103,7 +103,12 @@ in
             in
             ''
               set -xeu
-              exec ${pkg}/bin/inject_dns --nf-queue ${inject_dns_queue} --nf-mark ${inject_dns_mark} --interface br0
+              exec ${pkg}/bin/mangle_ip_configure \
+                --nf-queue ${mangle_ip_configure_queue} \
+                --nf-mark ${mangle_ip_configure_mark} \
+                --interface br0 \
+                ${lib.concatStringsSep " " (lib.lists.optionals (override_mtu != null) ["--mtu" (builtins.toString override_mtu)])} \
+                ;
             '';
         };
         environment.systemPackages = [

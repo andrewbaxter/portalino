@@ -1,0 +1,237 @@
+use {
+    crate::manglelib::{
+        checksum_finish,
+        checksum_roll,
+        icmpv6_udp_checksum,
+    },
+};
+
+const PAYLOAD_RA1: &[u8] = &[
+    // IPv6
+    0x6b,
+    0x80,
+    0x00,
+    0x00,
+    0x00,
+    0x20,
+    0x3a,
+    0xff,
+    0xfe,
+    0x80,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x4a,
+    0x2e,
+    0x72,
+    0xff,
+    0xfe,
+    0x63,
+    0x7d,
+    0x10,
+    0xff,
+    0x02,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    // ICMPv6
+    0x86,
+    0x00,
+    // Zero'd checksum
+    0x00,
+    0x00,
+    0x40,
+    0xc0,
+    0x07,
+    0x08,
+    0x00,
+    0x04,
+    0x93,
+    0xe0,
+    0x00,
+    0x00,
+    0x27,
+    0x10,
+    0x01,
+    0x01,
+    0x48,
+    0x2e,
+    0x72,
+    0x63,
+    0x7d,
+    0x10,
+    0x05,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x05,
+    0xdc,
+];
+
+#[test]
+fn test_checksum_roll_ex1() {
+    let mut sum32 = 0u32;
+
+    // Wikipedia, checksum set to 0 first
+    checksum_roll(
+        &mut sum32,
+        &[
+            0x45,
+            0x00,
+            0x00,
+            0x73,
+            0x00,
+            0x00,
+            0x40,
+            0x00,
+            0x40,
+            0x11,
+            0x00,
+            0x00,
+            0xc0,
+            0xa8,
+            0x00,
+            0x01,
+            0xc0,
+            0xa8,
+            0x00,
+            0xc7,
+        ],
+    );
+    assert_eq!(checksum_finish(sum32), [0xb8, 0x61]);
+}
+
+#[test]
+fn test_checksum_roll_ex2() {
+    let mut sum32 = 0u32;
+
+    // RFC 1071 example 1
+    checksum_roll(&mut sum32, &[0x00, 0x01, 0xf2, 0x03, 0xf4, 0xf5, 0xf6, 0xf7]);
+    assert_eq!(checksum_finish(sum32), [!0xdd, !0xf2]);
+}
+
+#[test]
+fn test_checksum_roll_ex3() {
+    let mut sum32 = 0u32;
+
+    // RFC 1071 example 2a
+    checksum_roll(&mut sum32, &[0x00, 0x01, 0xf2]);
+    assert_eq!(checksum_finish(sum32), [!0xf2, !0x01]);
+}
+
+#[test]
+fn test_checksum_roll_ex4() {
+    let mut sum32 = 0u32;
+
+    // RFC 1071 example 2b but shifted by 1
+    checksum_roll(&mut sum32, &[0x03, 0xf4, 0xf5, 0xf6, 0xf7]);
+    assert_eq!(checksum_finish(sum32), [!0xf0, !0xeb]);
+}
+
+#[test]
+fn test_checksum_ex1() {
+    assert_eq!(icmpv6_udp_checksum(PAYLOAD_RA1).unwrap(), [0xfd, 0x40]);
+}
+
+#[test]
+fn test_checksum_ex2() {
+    const PAYLOAD: &[u8] = &[
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        // Payload len 32
+        0x00,
+        0x20,
+        // Next header 58
+        0x3a,
+        0x00,
+        // Source
+        0xfe,
+        0x80,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x88,
+        0xc5,
+        0x75,
+        0x41,
+        0xaa,
+        0x0c,
+        0x58,
+        0xee,
+        // Dest
+        0xff,
+        0x02,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        // Icmpv6 type
+        0x88,
+        // Code
+        0x00,
+        // Checksum
+        0x00,
+        0x00,
+        // Body
+        0x20,
+        0x00,
+        0x00,
+        0x00,
+        0xfe,
+        0x80,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x88,
+        0xc5,
+        0x75,
+        0x41,
+        0xaa,
+        0x0c,
+        0x58,
+        0xee,
+        0x02,
+        0x01,
+        0x38,
+        0xea,
+        0xa7,
+        0x89,
+        0xbe,
+        0x59,
+    ];
+    assert_eq!(icmpv6_udp_checksum(PAYLOAD).unwrap(), [0xb8, 0xcc]);
+}

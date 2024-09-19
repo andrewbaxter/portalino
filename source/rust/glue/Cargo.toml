@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-aargvark = { version = "0.4", features = ["serde_json"] }
+aargvark = { version = "0.6", features = ["serde_json"] }
 loga = "0.5"
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }

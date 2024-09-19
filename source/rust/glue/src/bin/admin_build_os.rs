@@ -60,6 +60,7 @@ struct Args {
     #[vark(flag = "--ipv4-mode")]
     ipv4_mode: Option<Ipv4Mode>,
     ssh_authorized_keys_dir: Option<String>,
+    override_mtu: Option<u32>,
 }
 
 fn main() {
@@ -74,7 +75,8 @@ fn main() {
         create_dir_all(&stage_dir).context("Error ensuring staging dir")?;
         let mut command = Command::new("nix");
         command.arg("build").arg("-o").arg(stage_dir.join("imageout"));
-        command.arg("--offline");
+
+        //. command.arg("--offline");
         match args.ipv4_mode.unwrap_or_default() {
             Ipv4Mode::UpstreamNat64 => {
                 command.arg("-f").arg("source/os/main_nat64.nix");
@@ -134,6 +136,9 @@ fn main() {
             }).unwrap());
         if let Some(d) = args.ssh_authorized_keys_dir {
             command.arg("--arg").arg("ssh_authorized_keys_dir").arg(d);
+        }
+        if let Some(mtu) = args.override_mtu {
+            command.arg("--arg").arg("override_mtu").arg(mtu.to_string());
         }
         command.arg("config.system.build.myiso");
         run_(&mut command).context("Building failed")?;
