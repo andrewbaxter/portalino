@@ -8,6 +8,10 @@ let
   buildSystem = (configuration: import
     (const.nixpkgsPath + /nixos/lib/eval-config.nix)
     { modules = [ configuration ]; });
+  lan_ip = "192.168.1.1";
+  lan_prefix = 16;
+  lan_dhcp_start = "192.168.2.1";
+  lan_dhcp_end = "192.168.2.254";
 in
 buildSystem ({ ... }: {
   imports = [
@@ -17,6 +21,62 @@ buildSystem ({ ... }: {
       config = {
         networking.jool.enable = true;
         networking.jool.nat64.default = { };
+
+        # IPv4 address on the LAN bridge
+        systemd.network.networks.br0 = {
+          address = [ "${lan_ip}/${builtins.toString lan_prefix}" ];
+        };
+
+        # DHCPv4 server + DNS proxy for LAN clients
+        services.dnsmasq = {
+          enable = true;
+          settings = {
+            interface = "br0";
+            bind-interfaces = true;
+            # Don't read /etc/resolv.conf; forward to spaghettinuum directly
+            no-resolv = true;
+            server = [ "127.0.0.1" ];
+            dhcp-range = [ "${lan_dhcp_start},${lan_dhcp_end},24h" ];
+            dhcp-option = [
+              "option:router,${lan_ip}"
+              "option:dns-server,${lan_ip}"
+            ];
+          };
+        };
+
+        # IPv4 NAT masquerade and forwarding for PPPoE upstream
+        networking.nftables.ruleset = ''
+          table ip my_nat {
+            chain postrouting {
+              type nat hook postrouting priority srcnat; policy accept;
+              oif "ppp0" masquerade
+            }
+          }
+
+          table ip my_filter {
+            chain input {
+              type filter hook input priority 0; policy accept;
+              iif "br0" udp dport 67 accept
+              iif "br0" udp dport 53 accept
+              iif "br0" tcp dport 53 accept
+            }
+            chain forward {
+              type filter hook forward priority 0; policy accept;
+              ct state { established, related } accept
+              iif "br0" oif "ppp0" accept
+            }
+          }
+        '';
+
+        # UPnP / NAT-PMP port forwarding
+        services.miniupnpd = {
+          enable = true;
+          externalInterface = "ppp0";
+          internalIPs = [ "${lan_ip}/br0" ];
+          natpmp = true;
+          firewall = "nftables";
+        };
+
         services.pppd = {
           # - `pppd` on `eth0` when `eth0` is enslaved to the bridge doesn't work
           #
