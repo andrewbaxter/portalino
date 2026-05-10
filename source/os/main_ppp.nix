@@ -22,12 +22,10 @@ buildSystem ({ ... }: {
         networking.jool.enable = true;
         networking.jool.nat64.default = { };
 
-        # IPv4 address on the LAN bridge
         systemd.network.networks.br0 = {
           address = [ "${lan_ip}/${builtins.toString lan_prefix}" ];
         };
 
-        # DHCPv4 server + DNS proxy for LAN clients
         services.dnsmasq = {
           enable = true;
           settings = {
@@ -44,7 +42,6 @@ buildSystem ({ ... }: {
           };
         };
 
-        # IPv4 NAT masquerade and forwarding for PPPoE upstream
         networking.nftables.ruleset = ''
           table ip my_nat {
             chain postrouting {
@@ -68,7 +65,6 @@ buildSystem ({ ... }: {
           }
         '';
 
-        # UPnP / NAT-PMP port forwarding
         services.miniupnpd = {
           enable = true;
           externalInterface = "ppp0";
