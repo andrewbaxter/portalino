@@ -1,12 +1,3 @@
-[submodule "spaghettinuum"]
-	path = source/rust/spaghettinuum
-	url = https://github.com/andrewbaxter/spaghettinuum.git
-[submodule "nix/nixshared"]
-	path = source/os/nixshared
-	url = https://github.com/andrewbaxter/nixshared.git
-[submodule "nix/volumesetup"]
-	path = source/rust/volumesetup
-	url = https://github.com/andrewbaxter/volumesetup.git
 [submodule "source/rust/spaghettinuum"]
 	path = source/rust/spaghettinuum
 	url = https://github.com/andrewbaxter/spaghettinuum.git

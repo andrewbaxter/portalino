@@ -34,7 +34,17 @@ use {
         Deserialize,
         Serialize,
     },
-    spaghettinuum::interface::config::identity::LocalIdentitySecret,
+    ed25519_dalek::SigningKey,
+    spaghettinuum::interface::identity::{
+        Identity,
+        LocalIdentitySecret,
+        v1::{
+            Ed25519Identity,
+            Ed25519IdentitySecret,
+            Identity as V1Identity,
+            LocalIdentitySecret as V1LocalIdentitySecret,
+        },
+    },
     std::{
         fs::{
             create_dir_all,
@@ -106,7 +116,9 @@ fn main() {
             };
             break secret.identity();
         } 'create {
-            let (identity, ident_secret) = LocalIdentitySecret::new();
+            let signing_key = SigningKey::generate(&mut rand::rngs::OsRng);
+            let ident_secret = LocalIdentitySecret::V1(V1LocalIdentitySecret::Ed25519(Ed25519IdentitySecret(signing_key.clone())));
+            let identity = Identity::V1(V1Identity::Ed25519(Ed25519Identity(signing_key.verifying_key())));
             write(
                 &identity_path,
                 &serde_json::to_vec_pretty(&ident_secret).unwrap(),

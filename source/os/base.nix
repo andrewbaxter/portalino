@@ -1,10 +1,9 @@
-{ spaghettinuum_config
-, ssh_authorized_keys_dir ? null
+{ ssh_authorized_keys_dir ? null
 }:
 let const = import ./constants.nix; in ({ ... }: {
   imports = [
     (const.nixpkgsPath + /nixos/modules/profiles/all-hardware.nix)
-    ../rust/volumesetup/source/module.nix
+    ../rust/volumesetup/source/moduleSystemd.nix
     ({ pkgs, lib, ... }: {
       config = {
         nixpkgs.localSystem.system = "x86_64-linux";
@@ -39,7 +38,7 @@ let const = import ./constants.nix; in ({ ... }: {
         users.users.root.hashedPassword = "!";
         # users.users.root.password = "abcd";
 
-        # Disk 
+        # Disk
         volumesetup.enable = true;
 
         # Glue
@@ -200,7 +199,28 @@ let const = import ./constants.nix; in ({ ... }: {
         systemd.services.spaghettinuum =
           let
             pkg = import ../rust/spaghettinuum/source/package.nix { pkgs = pkgs; };
-            config_path = pkgs.writeText "spaghettinuum_config" spaghettinuum_config;
+            config_path = pkgs.writeTextFile {
+              name = "spaghettinuum_config";
+              text = builtins.toJSON {
+                persistent_dir = "/mnt/persistent/spaghettinuum";
+                cache_dir = "/run/spaghettinuum";
+                identity = { local = "/mnt/persistent/portalino.ident"; };
+                global_addrs = [{ from_interface = { name = "br0"; ip_version = "v6"; }; }];
+                upstream_dns = [
+                  "[2606:4700:4700::64]#dns64.cloudflare-dns.com"
+                  "[2606:4700:4700::6400]#dns64.cloudflare-dns.com"
+                  "[2001:4860:4860::64]#dns64.dns.google"
+                  "[2001:4860:4860::6464]#dns64.dns.google"
+                ];
+                enable_self_publish_ip = true;
+                enable_resolver_dns = {
+                  synthetic_self_record = "portalino.internal";
+                };
+              };
+              checkPhase = ''
+                ${pkg}/bin/spagh demon --config $out --validate
+              '';
+            };
           in
           {
             after = [ "glue_setup.service" "sshd.service" ];
@@ -212,13 +232,13 @@ let const = import ./constants.nix; in ({ ... }: {
             serviceConfig.RestartSec = 60;
             script = ''
               set -xeu
-              exec ${pkg}/bin/spagh-node --config ${config_path}
+              exec ${pkg}/bin/spagh demon --config ${config_path}
             '';
           };
         networking.nameservers = [ "127.0.0.1" ];
       };
     })
-    (import ./nixshared/iso/mod.nix {
+    (import ./iso.nix {
       nixpkgsPath = const.nixpkgsPath;
       extraFiles = [ ];
     })
