@@ -1,5 +1,6 @@
 { override_mtu ? null
 , ssh_authorized_keys_dir ? null
+, ssh_authorized_key ? null
 }:
 let
   const = import ./constants.nix;
@@ -10,7 +11,7 @@ let
 in
 buildSystem ({ ... }: {
   imports = [
-    (import ./base.nix { ssh_authorized_keys_dir = ssh_authorized_keys_dir; })
+    (import ./base.nix { ssh_authorized_keys_dir = ssh_authorized_keys_dir; ssh_authorized_key = ssh_authorized_key; })
     (import ./ipv6_bridge.nix { override_mtu = override_mtu; })
     ({ pkgs, lib, ... }: {
       config = {

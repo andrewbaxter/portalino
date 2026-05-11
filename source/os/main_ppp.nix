@@ -1,7 +1,7 @@
 { ppp_user
 , ppp_password
-, override_mtu ? null
 , ssh_authorized_keys_dir ? null
+, ssh_authorized_key ? null
 }:
 let
   const = import ./constants.nix;
@@ -15,12 +15,11 @@ let
 in
 buildSystem ({ ... }: {
   imports = [
-    (import ./base.nix { ssh_authorized_keys_dir = ssh_authorized_keys_dir; })
-    (import ./ipv6_bridge.nix { override_mtu = override_mtu; })
+    (import ./base.nix { ssh_authorized_keys_dir = ssh_authorized_keys_dir; ssh_authorized_key = ssh_authorized_key; })
+    (import ./ipv6_bridge.nix { })
     ({ pkgs, lib, ... }: {
       config = {
-        networking.jool.enable = true;
-        networking.jool.nat64.default = { };
+        systemd.services.setup_nftables_mangle_jool.enable = false;
 
         systemd.network.networks.br0 = {
           address = [ "${lan_ip}/${builtins.toString lan_prefix}" ];

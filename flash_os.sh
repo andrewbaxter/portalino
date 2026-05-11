@@ -1,4 +1,5 @@
-#!/usr/bin/bash -xeu
+#!/usr/bin/env bash
+set -xeu
 # Flash the built ISO to a USB drive.
 # Usage: flash_os.sh <device>  (e.g. /dev/sdb)
 if [ -z "${1:-}" ]; then

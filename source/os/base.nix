@@ -1,4 +1,5 @@
 { ssh_authorized_keys_dir ? null
+, ssh_authorized_key ? null
 }:
 let const = import ./constants.nix; in ({ ... }: {
   imports = [
@@ -158,6 +159,9 @@ let const = import ./constants.nix; in ({ ... }: {
         users.users.root.openssh.authorizedKeys.keyFiles = lib.lists.optionals (ssh_authorized_keys_dir != null) (
           map (x: ssh_authorized_keys_dir + "/${x}") (builtins.attrNames (builtins.readDir ssh_authorized_keys_dir))
         );
+        users.users.root.openssh.authorizedKeys.keys = lib.lists.optionals (ssh_authorized_keys_dir == null && ssh_authorized_key != null) [
+          ssh_authorized_key
+        ];
         environment.systemPackages = [
           # Basic tools
           pkgs.vim
